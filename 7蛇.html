@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>貪吃蛇遊戲 (WASD控制版)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f8ff;
+            display: flex;
+            padding: 20px;
+            margin: 0;
+        }
+        
+        .game-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-right: 20px;
+            flex-grow: 1;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .game-info {
+            margin-bottom: 20px;
+            font-size: 18px;
+            color: #34495e;
+            text-align: center;
+        }
+        
+        .game-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        
+        canvas {
+            border: 2px solid #2c3e50;
+            background-color: #ecf0f1;
+        }
+        
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        .level-select {
+            margin-bottom: 20px;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 500px;
+        }
+        
+        .modal h2 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        
+        .warning {
+            color: #e74c3c;
+            font-weight: bold;
+            margin-top: 10px;
+            height: 20px;
+        }
+        
+        .shop-area {
+            width: 350px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .shop {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            background-color: white;
+        }
+        
+        .shop h3 {
+            margin-top: 0;
+            color: #2c3e50;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        
+        .shop-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .shop-item button {
+            padding: 5px 10px;
+            font-size: 14px;
+        }
+        
+        .owned {
+            color: #27ae60;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        
+        .snake-head {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+        
+        .coin-display {
+            font-size: 20px;
+            font-weight: bold;
+            color: #f39c12;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .controls-hint {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-area">
+        <h1>貪吃蛇遊戲 (WASD控制版)</h1>
+        <div class="game-info">
+            <div>關卡: <span id="level">1</span>/5</div>
+            <div>分數: <span id="score">0</span></div>
+            <div>蛇長: <span id="length">3</span>/<span id="max-length">100</span></div>
+            <div class="warning" id="warning"></div>
+            <div class="controls-hint">控制: W(上) A(左) S(下) D(右) 空格(暫停)</div>
+        </div>
+        
+        <div class="level-select">
+            <button id="level1">第1關 (10x10)</button>
+            <button id="level2">第2關 (15x15)</button>
+            <button id="level3">第3關 (20x20)</button>
+            <button id="level4">第4關 (25x25)</button>
+            <button id="level5">第5關 (30x30)</button>
+        </div>
+        
+        <div class="game-container">
+            <canvas id="gameCanvas" width="300" height="300"></canvas>
+        </div>
+        
+        <div class="controls">
+            <button id="startBtn">開始遊戲</button>
+            <button id="pauseBtn">暫停</button>
+            <button id="resetBtn">重新開始</button>
+        </div>
+        
+        <div class="modal" id="gameOverModal">
+            <div class="modal-content">
+                <h2 id="modalTitle">遊戲結束</h2>
+                <p id="modalMessage">你碰到了邊界！</p>
+                <p>獲得金幣: <span id="coinsEarned">0</span></p>
+                <button id="modalBtn">確定</button>
+            </div>
+        </div>
+        
+        <div class="modal" id="levelCompleteModal">
+            <div class="modal-content">
+                <h2>恭喜！</h2>
+                <p id="levelCompleteMessage">你完成了第1關！</p>
+                <p>獲得金幣: <span id="levelCompleteCoins">0</span></p>
+                <button id="nextLevelBtn">下一關</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="shop-area">
+        <div class="coin-display">金幣: <span id="coins">0</span></div>
+        
+        <div class="shop" id="skinShop">
+            <h3>皮膚商店</h3>
+            <div id="skinShopItems">
+                <!-- 皮膚商品將在這裡動態生成 -->
+            </div>
+        </div>
+        
+        <div class="shop" id="talentShop">
+            <h3>天賦商店</h3>
+            <div id="talentShopItems">
+                <!-- 天賦商品將在這裡動態生成 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // 遊戲元素
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+            const scoreDisplay = document.getElementById('score');
+            const lengthDisplay = document.getElementById('length');
+            const maxLengthDisplay = document.getElementById('max-length');
+            const levelDisplay = document.getElementById('level');
+            const warningDisplay = document.getElementById('warning');
+            const coinsDisplay = document.getElementById('coins');
+            const coinsEarnedDisplay = document.getElementById('coinsEarned');
+            const levelCompleteCoinsDisplay = document.getElementById('levelCompleteCoins');
+            
+            // 按鈕
+            const startBtn = document.getElementById('startBtn');
+            const pauseBtn = document.getElementById('pauseBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            const levelBtns = [
+                document.getElementById('level1'),
+                document.getElementById('level2'),
+                document.getElementById('level3'),
+                document.getElementById('level4'),
+                document.getElementById('level5')
+            ];
+            
+            // 模態框
+            const gameOverModal = document.getElementById('gameOverModal');
+            const levelCompleteModal = document.getElementById('levelCompleteModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalMessage = document.getElementById('modalMessage');
+            const modalBtn = document.getElementById('modalBtn');
+            const levelCompleteMessage = document.getElementById('levelCompleteMessage');
+            const nextLevelBtn = document.getElementById('nextLevelBtn');
+            
+            // 商店元素
+            const skinShopItems = document.getElementById('skinShopItems');
+            const talentShopItems = document.getElementById('talentShopItems');
+            
+            // 遊戲變量
+            let snake = [];
+            let food = {};
+            let direction = 'right';
+            let nextDirection = 'right';
+            let gameLoop;
+            let score = 0;
+            let gameSpeed = 150;
+            let isPaused = false;
+            let isGameOver = false;
+            let gridSize = 10;
+            let tileSize = 30;
+            let currentLevel = 1;
+            let maxLength = 100;
+            let coins = 0;
+            
+            // 無敵時間相關變量
+            let isInvincible = false;
+            let invincibleTimer = null;
+            let flashInterval = null;
+            let isFlashing = false;
+            let invincibleDuration = 1000; // 預設1秒無敵時間
+            
+            // 天賦相關
+            let initialSnakeLength = 3;
+            let scoreMultiplier = 1;
+            
+            // 皮膚相關
+            let currentSkin = 'default';
+            const skins = {
+                'default': { name: '預設', price: 0, owned: true, headColor: '#3498db', bodyColor: '#2c3e50' },
+                'red': { name: '紅色', price: 10, owned: false, headColor: '#e74c3c', bodyColor: '#c0392b' },
+                'green': { name: '綠色', price: 10, owned: false, headColor: '#2ecc71', bodyColor: '#27ae60' },
+                'purple': { name: '紫色', price: 10, owned: false, headColor: '#9b59b6', bodyColor: '#8e44ad' },
+                'gold': { name: '金色', price: 50, owned: false, headColor: '#f1c40f', bodyColor: '#f39c12', rounded: true },
+                'snake': { name: '蛇形', price: 50, owned: false, headColor: '#3498db', bodyColor: '#2c3e50', snakeLike: true },
+                'rainbow': { name: '彩虹', price: 100, owned: false, rainbow: true }
+            };
+            
+            // 天賦
+            const talents = {
+                'longer-start': { name: '初始長度+1', price: 50, owned: false, description: '遊戲開始時蛇長度增加1節' },
+                'longer-start-2': { name: '初始長度+2', price: 100, owned: false, description: '遊戲開始時蛇長度增加2節' },
+                'invincible-plus': { name: '無敵時間+0.5秒', price: 100, owned: false, description: '無敵時間增加0.5秒' },
+                'invincible-plus-2': { name: '無敵時間+1秒', price: 150, owned: false, description: '無敵時間增加1秒' },
+                'score-boost': { name: '分數加成20%', price: 200, owned: false, description: '獲得的分數增加20%' }
+            };
+            
+            // 初始化遊戲
+            function initGame(level = 1) {
+                currentLevel = level;
+                gridSize = levels[level - 1].size;
+                gameSpeed = levels[level - 1].speed;
+                maxLength = levels[level - 1].maxLength;
+                
+                // 調整畫布大小
+                tileSize = Math.floor(300 / gridSize);
+                canvas.width = gridSize * tileSize;
+                canvas.height = gridSize * tileSize;
+                
+                // 重置遊戲狀態
+                clearInterval(gameLoop);
+                clearTimeout(invincibleTimer);
+                clearInterval(flashInterval);
+                snake = [];
+                direction = 'right';
+                nextDirection = 'right';
+                score = 0;
+                isPaused = false;
+                isGameOver = false;
+                isInvincible = false;
+                isFlashing = false;
+                warningDisplay.textContent = '';
+                
+                // 初始化蛇 (根據天賦決定長度)
+                for (let i = initialSnakeLength - 1; i >= 0; i--) {
+                    snake.push({ x: i, y: 0 });
+                }
+                
+                // 生成食物
+                generateFood();
+                
+                // 更新顯示
+                updateDisplay();
+                
+                // 更新關卡按鈕樣式
+                updateLevelButtons();
+                
+                // 繪製遊戲
+                drawGame();
+            }
+            
+            // 更新金幣顯示
+            function updateCoinDisplay() {
+                coinsDisplay.textContent = coins;
+                localStorage.setItem('snakeCoins', coins.toString());
+                updateShopButtons();
+            }
+            
+            // 更新商店按鈕狀態
+            function updateShopButtons() {
+                // 更新皮膚商店按鈕
+                document.querySelectorAll('#skinShopItems .shop-item').forEach(item => {
+                    const skinId = item.dataset.skinId;
+                    const button = item.querySelector('button');
+                    const skin = skins[skinId];
+                    
+                    if (skin.owned) {
+                        button.textContent = currentSkin === skinId ? '使用中' : '使用';
+                        button.disabled = false;
+                    } else {
+                        button.textContent = '購買';
+                        button.disabled = coins < skin.price;
+                    }
+                });
+                
+                // 更新天賦商店按鈕
+                document.querySelectorAll('#talentShopItems .shop-item').forEach(item => {
+                    const talentId = item.dataset.talentId;
+                    const button = item.querySelector('button');
+                    const talent = talents[talentId];
+                    
+                    button.textContent = talent.owned ? '已購買' : '購買';
+                    button.disabled = talent.owned || coins < talent.price;
+                });
+            }
+            
+            // 更新關卡按鈕樣式
+            function updateLevelButtons() {
+                levelBtns.forEach((btn, index) => {
+                    if (index + 1 === currentLevel) {
+                        btn.style.backgroundColor = '#e74c3c';
+                        btn.style.color = 'white';
+                    } else {
+                        btn.style.backgroundColor = '#3498db';
+                        btn.style.color = 'white';
+                    }
+                });
+            }
+            
+            // 生成食物
+            function generateFood() {
+                let validPosition = false;
+                
+                while (!validPosition) {
+                    food = {
+                        x: Math.floor(Math.random() * gridSize),
+                        y: Math.floor(Math.random() * gridSize)
+                    };
+                    
+                    // 檢查食物是否與蛇重疊
+                    validPosition = true;
+                    for (let segment of snake) {
+                        if (segment.x === food.x && segment.y === food.y) {
+                            validPosition = false;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // 閃爍效果
+            function startFlashing() {
+                isFlashing = true;
+                let flashCount = 0;
+                const maxFlashes = Math.floor(invincibleDuration / 200); // 根據無敵時間計算閃爍次數
+                
+                flashInterval = setInterval(() => {
+                    isFlashing = !isFlashing;
+                    flashCount++;
+                    drawGame();
+                    
+                    if (flashCount >= maxFlashes * 2) {
+                        clearInterval(flashInterval);
+                        isFlashing = false;
+                        if (isInvincible) {
+                            // 如果無敵時間結束時仍然在碰撞狀態
+                            checkCollision(true);
+                        }
+                    }
+                }, 100); // 每100毫秒閃爍一次
+            }
+            
+            // 檢查碰撞
+            function checkCollision(forceGameOver = false) {
+                const head = snake[0];
+                
+                // 邊界檢查
+                const hitWall = head.x < 0 || head.x >= gridSize || head.y < 0 || head.y >= gridSize;
+                
+                // 自我碰撞檢查
+                let hitSelf = false;
+                for (let i = 1; i < snake.length; i++) {
+                    if (snake[i].x === head.x && snake[i].y === head.y) {
+                        hitSelf = true;
+                        break;
+                    }
+                }
+                
+                if (hitWall || hitSelf) {
+                    if (isInvincible && !forceGameOver) {
+                        // 無敵時間內，不處理碰撞
+                        return false;
+                    }
+                    
+                    if (!isInvincible) {
+                        // 首次碰撞，啟動無敵時間
+                        isInvincible = true;
+                        warningDisplay.textContent = hitWall ? '碰到邊界！' : '碰到自己！';
+                        startFlashing();
+                        
+                        // 設置無敵時間後檢查是否仍然碰撞
+                        invincibleTimer = setTimeout(() => {
+                            isInvincible = false;
+                            checkCollision(true);
+                        }, invincibleDuration);
+                        
+                        return false;
+                    } else {
+                        // 無敵時間結束後仍然碰撞
+                        gameOver(hitWall ? '你碰到了邊界！' : '你碰到了自己！');
+                        return true;
+                    }
+                }
+                
+                // 沒有碰撞
+                warningDisplay.textContent = '';
+                return false;
+            }
+            
+            // 繪製蛇身節點
+            function drawSnakeSegment(x, y, isHead = false) {
+                const skin = skins[currentSkin];
+                
+                if (skin.rainbow) {
+                    // 彩虹皮膚
+                    const hue = (x + y + Date.now() / 200) % 360;
+                    ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+                } else if (isHead) {
+                    // 蛇頭
+                    ctx.fillStyle = skin.headColor;
+                } else {
+                    // 蛇身
+                    ctx.fillStyle = skin.bodyColor;
+                }
+                
+                if (skin.rounded) {
+                    // 圓形皮膚
+                    ctx.beginPath();
+                    ctx.arc(
+                        x * tileSize + tileSize / 2,
+                        y * tileSize + tileSize / 2,
+                        tileSize / 2 - 1,
+                        0,
+                        Math.PI * 2
+                    );
+                    ctx.fill();
+                } else if (skin.snakeLike) {
+                    // 蛇形皮膚
+                    const segmentIndex = snake.findIndex(seg => seg.x === x && seg.y === y);
+                    const prevSegment = snake[segmentIndex - 1];
+                    const nextSegment = snake[segmentIndex + 1];
+                    
+                    ctx.beginPath();
+                    
+                    if (isHead) {
+                        // 繪製蛇頭
+                        ctx.arc(
+                            x * tileSize + tileSize / 2,
+                            y * tileSize + tileSize / 2,
+                            tileSize / 2 - 1,
+                            0,
+                            Math.PI * 2
+                        );
+                    } else {
+                        // 繪製蛇身
+                        let fromX, fromY, toX, toY;
+                        
+                        if (prevSegment) {
+                            fromX = prevSegment.x;
+                            fromY = prevSegment.y;
+                        } else {
+                            fromX = x;
+                            fromY = y;
+                        }
+                        
+                        if (nextSegment) {
+                            toX = nextSegment.x;
+                            toY = nextSegment.y;
+                        } else {
+                            toX = x;
+                            toY = y;
+                        }
+                        
+                        const centerX = x * tileSize + tileSize / 2;
+                        const centerY = y * tileSize + tileSize / 2;
+                        const radius = tileSize / 2 - 1;
+                        
+                        // 計算角度
+                        const angle1 = Math.atan2(fromY - y, fromX - x);
+                        const angle2 = Math.atan2(toY - y, toX - x);
+                        
+                        ctx.arc(centerX, centerY, radius, angle1, angle2 + Math.PI);
+                        ctx.lineTo(centerX, centerY);
+                    }
+                    
+                    ctx.fill();
+                } else {
+                    // 預設方形皮膚
+                    ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+                }
+            }
+            
+            // 遊戲主循環
+            function gameUpdate() {
+                if (isPaused || isGameOver) return;
+                
+                // 更新方向
+                direction = nextDirection;
+                
+                // 計算蛇頭新位置
+                let head = { ...snake[0] };
+                
+                switch (direction) {
+                    case 'up':
+                        head.y--;
+                        break;
+                    case 'down':
+                        head.y++;
+                        break;
+                    case 'left':
+                        head.x--;
+                        break;
+                    case 'right':
+                        head.x++;
+                        break;
+                }
+                
+                // 移動蛇
+                snake.unshift(head);
+                
+                // 檢查碰撞
+                if (checkCollision()) {
+                    return;
+                }
+                
+                // 檢查是否吃到食物
+                if (head.x === food.x && head.y === food.y) {
+                    // 計算分數 (考慮天賦加成)
+                    let scoreToAdd = 10 * scoreMultiplier;
+                    score += Math.floor(scoreToAdd);
+                    
+                    generateFood();
+                    
+                    // 檢查是否贏得關卡
+                    if (snake.length >= maxLength) {
+                        levelComplete();
+                        return;
+                    }
+                } else {
+                    // 如果沒吃到食物，移除尾部
+                    snake.pop();
+                }
+                
+                // 繪製遊戲
+                drawGame();
+                updateDisplay();
+            }
+            
+            // 繪製遊戲
+            function drawGame() {
+                // 清除畫布
+                ctx.fillStyle = '#ecf0f1';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // 繪製食物
+                ctx.fillStyle = '#e74c3c';
+                ctx.fillRect(food.x * tileSize, food.y * tileSize, tileSize, tileSize);
+                
+                // 繪製蛇
+                if (!isFlashing || (isFlashing && Date.now() % 200 < 100)) {
+                    // 繪製蛇身
+                    for (let i = 0; i < snake.length; i++) {
+                        const segment = snake[i];
+                        drawSnakeSegment(segment.x, segment.y, i === 0);
+                    }
+                }
+            }
+            
+            // 更新顯示
+            function updateDisplay() {
+                scoreDisplay.textContent = score;
+                lengthDisplay.textContent = snake.length;
+                maxLengthDisplay.textContent = maxLength;
+                levelDisplay.textContent = currentLevel;
+            }
+            
+            // 遊戲結束
+            function gameOver(message) {
+                isGameOver = true;
+                clearInterval(gameLoop);
+                clearTimeout(invincibleTimer);
+                clearInterval(flashInterval);
+                
+                // 計算獲得金幣 (基礎10 + 分數/10)
+                const coinsEarned = 10 + Math.floor(score / 10);
+                coins += coinsEarned;
+                updateCoinDisplay();
+                
+                modalTitle.textContent = '遊戲結束';
+                modalMessage.textContent = message;
+                coinsEarnedDisplay.textContent = coinsEarned;
+                gameOverModal.style.display = 'flex';
+            }
+            
+            // 關卡完成
+            function levelComplete() {
+                isGameOver = true;
+                clearInterval(gameLoop);
+                clearTimeout(invincibleTimer);
+                clearInterval(flashInterval);
+                
+                // 計算獲得金幣 (基礎50 + 分數/5)
+                const coinsEarned = 50 + Math.floor(score / 5);
+                coins += coinsEarned;
+                updateCoinDisplay();
+                
+                levelCompleteMessage.textContent = `你完成了第${currentLevel}關！得分: ${score}`;
+                levelCompleteCoinsDisplay.textContent = coinsEarned;
+                levelCompleteModal.style.display = 'flex';
+            }
+            
+            // 開始遊戲
+            function startGame() {
+                if (!gameLoop && !isGameOver) {
+                    gameLoop = setInterval(gameUpdate, gameSpeed);
+                    startBtn.textContent = '重新開始';
+                }
+            }
+            
+            // 暫停遊戲
+            function pauseGame() {
+                if (isPaused) {
+                    isPaused = false;
+                    pauseBtn.textContent = '暫停';
+                    if (!isGameOver) {
+                        gameLoop = setInterval(gameUpdate, gameSpeed);
+                    }
+                } else {
+                    isPaused = true;
+                    pauseBtn.textContent = '繼續';
+                    clearInterval(gameLoop);
+                }
+            }
+            
+            // 初始化商店
+            function initShop() {
+                // 皮膚商店
+                skinShopItems.innerHTML = '';
+                for (const [id, skin] of Object.entries(skins)) {
+                    if (id === 'default') continue;
+                    
+                    const item = document.createElement('div');
+                    item.className = 'shop-item';
+                    item.dataset.skinId = id;
+                    
+                    const preview = document.createElement('div');
+                    preview.className = 'snake-head';
+                    preview.style.backgroundColor = skin.headColor;
+                    preview.style.borderRadius = skin.rounded ? '50%' : '0';
+                    
+                    const itemInfo = document.createElement('div');
+                    itemInfo.innerHTML = `
+                        <strong>${skin.name}</strong> - ${skin.price}金幣
+                        ${skin.owned ? '<span class="owned">(已擁有)</span>' : ''}
+                    `;
+                    
+                    const buyBtn = document.createElement('button');
+                    buyBtn.textContent = skin.owned ? (currentSkin === id ? '使用中' : '使用') : '購買';
+                    buyBtn.disabled = !skin.owned && coins < skin.price;
+                    
+                    buyBtn.addEventListener('click', () => {
+                        if (skin.owned) {
+                            currentSkin = id;
+                            saveGameData();
+                            updateShopButtons();
+                            drawGame();
+                        } else if (coins >= skin.price) {
+                            coins -= skin.price;
+                            skins[id].owned = true;
+                            currentSkin = id;
+                            updateCoinDisplay();
+                            saveGameData();
+                            initShop();
+                        }
+                    });
+                    
+                    item.appendChild(preview);
+                    item.appendChild(itemInfo);
+                    item.appendChild(buyBtn);
+                    skinShopItems.appendChild(item);
+                }
+                
+                // 天賦商店
+                talentShopItems.innerHTML = '';
+                for (const [id, talent] of Object.entries(talents)) {
+                    const item = document.createElement('div');
+                    item.className = 'shop-item';
+                    item.dataset.talentId = id;
+                    
+                    const itemInfo = document.createElement('div');
+                    itemInfo.innerHTML = `
+                        <strong>${talent.name}</strong> - ${talent.price}金幣<br>
+                        <small>${talent.description}</small>
+                        ${talent.owned ? '<span class="owned">(已擁有)</span>' : ''}
+                    `;
+                    
+                    const buyBtn = document.createElement('button');
+                    buyBtn.textContent = talent.owned ? '已購買' : '購買';
+                    buyBtn.disabled = talent.owned || coins < talent.price;
+                    
+                    buyBtn.addEventListener('click', () => {
+                        if (!talent.owned && coins >= talent.price) {
+                            coins -= talent.price;
+                            talents[id].owned = true;
+                            updateCoinDisplay();
+                            
+                            // 應用天賦效果
+                            if (id === 'longer-start') {
+                                initialSnakeLength = 4;
+                            } else if (id === 'longer-start-2') {
+                                initialSnakeLength = 5;
+                            } else if (id === 'invincible-plus') {
+                                invincibleDuration = 1500; // 1.5秒
+                            } else if (id === 'invincible-plus-2') {
+                                invincibleDuration = 2000; // 2秒
+                            } else if (id === 'score-boost') {
+                                scoreMultiplier = 1.2;
+                            }
+                            
+                            saveGameData();
+                            initShop();
+                        }
+                    });
+                    
+                    item.appendChild(itemInfo);
+                    item.appendChild(buyBtn);
+                    talentShopItems.appendChild(item);
+                }
+            }
+            
+            // 保存遊戲數據
+            function saveGameData() {
+                const gameData = {
+                    coins: coins,
+                    skins: {},
+                    talents: {},
+                    currentSkin: currentSkin,
+                    initialSnakeLength: initialSnakeLength,
+                    invincibleDuration: invincibleDuration,
+                    scoreMultiplier: scoreMultiplier
+                };
+                
+                for (const [id, skin] of Object.entries(skins)) {
+                    gameData.skins[id] = skin.owned;
+                }
+                
+                for (const [id, talent] of Object.entries(talents)) {
+                    gameData.talents[id] = talent.owned;
+                }
+                
+                localStorage.setItem('snakeGameData', JSON.stringify(gameData));
+            }
+            
+            // 載入遊戲數據
+            function loadGameData() {
+                const savedData = localStorage.getItem('snakeGameData');
+                if (savedData) {
+                    const gameData = JSON.parse(savedData);
+                    
+                    coins = gameData.coins || 0;
+                    currentSkin = gameData.currentSkin || 'default';
+                    initialSnakeLength = gameData.initialSnakeLength || 3;
+                    invincibleDuration = gameData.invincibleDuration || 1000;
+                    scoreMultiplier = gameData.scoreMultiplier || 1;
+                    
+                    // 載入皮膚擁有狀態
+                    for (const [id, owned] of Object.entries(gameData.skins || {})) {
+                        if (skins[id]) {
+                            skins[id].owned = owned;
+                        }
+                    }
+                    
+                    // 載入天賦擁有狀態
+                    for (const [id, owned] of Object.entries(gameData.talents || {})) {
+                        if (talents[id]) {
+                            talents[id].owned = owned;
+                        }
+                    }
+                }
+            }
+            
+            // 關卡設定
+            const levels = [
+                { size: 10, speed: 150, maxLength: 100 },  // 第1關
+                { size: 15, speed: 130, maxLength: 225 },  // 第2關
+                { size: 20, speed: 110, maxLength: 400 },  // 第3關
+                { size: 25, speed: 90, maxLength: 625 },   // 第4關
+                { size: 30, speed: 70, maxLength: 900 }    // 第5關
+            ];
+            
+            // 事件監聽器
+            // 鍵盤控制 (WASD 版本)
+            document.addEventListener('keydown', (e) => {
+                switch (e.key.toLowerCase()) {  // 轉為小寫以同時支持大小寫
+                    case 'w':
+                        if (direction !== 'down') nextDirection = 'up';
+                        break;
+                    case 's':
+                        if (direction !== 'up') nextDirection = 'down';
+                        break;
+                    case 'a':
+                        if (direction !== 'right') nextDirection = 'left';
+                        break;
+                    case 'd':
+                        if (direction !== 'left') nextDirection = 'right';
+                        break;
+                    case ' ':
+                        pauseGame();
+                        break;
+                }
+            });
+            
+            // 按鈕控制
+            startBtn.addEventListener('click', () => {
+                if (isGameOver) {
+                    initGame(currentLevel);
+                }
+                startGame();
+            });
+            
+            pauseBtn.addEventListener('click', pauseGame);
+            
+            resetBtn.addEventListener('click', () => {
+                initGame(currentLevel);
+            });
+            
+            // 關卡選擇
+            levelBtns.forEach((btn, index) => {
+                btn.addEventListener('click', () => {
+                    initGame(index + 1);
+                });
+            });
+            
+            // 模態框按鈕
+            modalBtn.addEventListener('click', () => {
+                gameOverModal.style.display = 'none';
+            });
+            
+            nextLevelBtn.addEventListener('click', () => {
+                levelCompleteModal.style.display = 'none';
+                if (currentLevel < 5) {
+                    initGame(currentLevel + 1);
+                } else {
+                    // 所有關卡完成
+                    initGame(1);
+                }
+            });
+            
+            // 初始化遊戲
+            loadGameData();
+            initGame(1);
+            initShop();
+            updateCoinDisplay();
+        });
+    </script>
+</body>
+</html>
